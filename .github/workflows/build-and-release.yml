@@ -49,12 +49,12 @@ jobs:
           --include-native-libraries true \
           /p:PublishTrimmed=true
 
-    - name: Upload Release Asset to GitHub
+    - name: Upload BebraLand Launcher.exe to GitHub Releases
       if: success()
       uses: ncipollo/release-action@v1
       with:
         artifacts: |
-          $(System.DefaultWorkingDirectory)/src/Gml.Launcher/bin/Release/net8.0/${{ matrix.runtime }}/publish/*
+          $(System.DefaultWorkingDirectory)/src/Gml.Launcher/bin/Release/net8.0/${{ matrix.runtime }}/publish/BebraLand Launcher.exe
         tag: ${{ github.ref }}
         name: Gml.Launcher-${{ matrix.platform }}
 
