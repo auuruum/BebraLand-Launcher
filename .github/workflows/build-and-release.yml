@@ -47,8 +47,7 @@ jobs:
           --single-file true \
           --ready-to-run true \
           --include-native-libraries true \
-          /p:PublishTrimmed=true \
-          /p:PublishSingleFile=true
+          /p:PublishTrimmed=true
 
     - name: Upload Release Asset to GitHub
       if: success()
