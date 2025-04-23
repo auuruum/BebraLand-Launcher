@@ -1,0 +1,45 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Gml.Launcher.Views.Components">
+    <Design.PreviewWith>
+        <Border Background="{StaticResource BackgroundColor}"
+                Padding="20">
+            <StackPanel Spacing="30">
+                <controls:LogoComponent Classes="Icon" />
+                <controls:LogoComponent Classes="TextLogo" />
+            </StackPanel>
+        </Border>
+    </Design.PreviewWith>
+
+    <Style Selector="controls|LogoComponent.Icon">
+        <!-- Increase the default Size -->
+        <Setter Property="Size" Value="64"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Image Source="/Assets/Images/logo.ico"
+                       Width="{TemplateBinding Size}"
+                       Height="{TemplateBinding Size}" />
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="controls|LogoComponent.TextLogo">
+        <!-- Increase the default Size -->
+        <Setter Property="Size" Value="64"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <StackPanel Orientation="Horizontal"
+                            Spacing="-2">
+                    <Image Source="/Assets/Images/logo.ico"
+                           Width="{TemplateBinding Size}"
+                           Height="{TemplateBinding Size}" />
+                    <TextBlock Text="BebraLand"
+                               VerticalAlignment="Center"
+                               FontSize="26"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource HeadlineColor}" />
+                </StackPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+</Styles>

@@ -1,0 +1,131 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Gml.Launcher.ViewModels.Pages"
+             xmlns:lang="clr-namespace:Gml.Launcher.Assets.Resources"
+             xmlns:components="clr-namespace:Gml.Launcher.Views.Components"
+             xmlns:converters="clr-namespace:Gml.Launcher.Core.Converters"
+             xmlns:news="clr-namespace:Gml.Web.Api.Dto.News;assembly=Gml.Web.Api.Dto"
+             mc:Ignorable="d"
+             d:DesignWidth="1000"
+             Background="Transparent"
+             d:DesignHeight="600"
+             x:DataType="vm:OverviewPageViewModel"
+             x:Class="Gml.Launcher.Views.Pages.OverviewPageView">
+
+
+    <Grid ColumnDefinitions="Auto, *">
+
+        <!-- Background -->
+        <components:BackgroundComponent Grid.Column="0"
+                                        Grid.ColumnSpan="2"
+                                        converters:AsyncStreamToImageLoader.Source="{Binding ListViewModel.SelectedProfile.Background}" />
+
+        <Rectangle Grid.Column="0"
+                   Grid.ColumnSpan="2"
+                   Opacity=".5"
+                   Fill="{DynamicResource BackgroundOverlay}" />
+
+        <!-- Content -->
+        <Border Grid.Column="1" Padding="25">
+
+            <Grid ColumnDefinitions="Auto, 30, *"
+                  RowDefinitions="60, 30, *, 30, Auto">
+
+                <components:OnlineComponent
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Online="{Binding ListViewModel.SelectedProfile.Servers,
+                    Converter={converters:SumServersOnlineConverter}}"
+                    VerticalAlignment="Center" />
+
+                <components:ProgressBar Grid.Row="0"
+                                        Grid.Column="0"
+                                        Grid.ColumnSpan="3"
+                                        IsVisible="{Binding IsProcessing}"
+                                        Headline="{Binding Headline}"
+                                        Description="{Binding Description}"
+                                        Percentage="{Binding LoadingPercentage}" />
+
+                <!-- News -->
+                <Grid RowDefinitions="Auto, 0, *" VerticalAlignment="Stretch" Grid.Row="2" Grid.Column="2">
+                    <TextBlock Classes="HeadlineText" Text="{x:Static lang:Resources.News}"/>
+                    <ScrollViewer Grid.Row="2" CornerRadius="10" ClipToBounds="True">
+                        <ItemsControl ItemsSource="{Binding News}">
+                            <ItemsControl.DataTemplates>
+                                <DataTemplate x:DataType="news:NewsReadDto">
+
+                                    <components:NewsComponent Title="{Binding Title}"
+                                                              Description="{Binding Content}"
+                                                              Date="{Binding Date}"
+                                                              Margin="0, 0, 0, 10"/>
+                                </DataTemplate>
+                            </ItemsControl.DataTemplates>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Server Info -->
+                <components:ServerInfo Grid.Column="0"
+                                       Grid.Row="2"
+                                       Background="Blue"
+                                       Classes.Animated="{Binding ListViewModel.HasSelectedItem}"
+                                       PlayCommand="{Binding PlayCommand}"
+                                       SettingsCommand="{Binding GoSettingsCommand}"
+                                       GoModsCommand="{Binding GoModsCommand}"
+                                       IsVisible="{Binding ListViewModel.HasSelectedItem}"
+                                       ProfileName="{Binding ListViewModel.SelectedProfile.DisplayName}"
+                                       GameVersion="{Binding ListViewModel.SelectedProfile.GameVersion}"
+                                       LaunchVersion="{Binding ListViewModel.SelectedProfile.LaunchVersion}"
+                                       ProfileDescription="{Binding ListViewModel.SelectedProfile.Description}"
+                                       State="{Binding ListViewModel.SelectedProfile.State}"
+                                       CreateDate="{Binding ListViewModel.SelectedProfile.CreateDate}"
+                                       Status="{x:Static lang:Resources.Available}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Left" />
+
+                <!-- Footer -->
+                <Grid Grid.Row="4"
+                      Grid.Column="0"
+                      Grid.ColumnSpan="3"
+                      ColumnDefinitions="Auto, *, Auto">
+
+                    <components:GmlButton Grid.Column="0"
+                                          IconPath="/Assets/Images/document.svg"
+                                          Command="{Binding OpenLinkCommand}"
+                                          CommandParameter="http://78.31.184.77/wiki/mods/modlist"
+                                          IconSize="22"
+                                          Classes="TextIcon Additional"
+                                          Text="{x:Static lang:Resources.ModsList}" />
+
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="10">
+
+                        <components:GmlButton IconPath="/Assets/Images/app.svg"
+                                              IconSize="22"
+                                              Command="{Binding OpenLinkCommand}"
+                                              CommandParameter="http://78.31.184.77/"
+                                              Padding="15, 0, 15, 0"
+                                              Classes="TextIcon Additional"
+                                              Text="{x:Static lang:Resources.Website}" />
+
+                    </StackPanel>
+
+                </Grid>
+
+            </Grid>
+
+        </Border>
+
+        <!-- Sidebar -->
+        <components:SidebarComponent Grid.Column="0"
+                                     ListViewModel="{Binding ListViewModel}"
+                                     LogoutCommand="{Binding LogoutCommand}"
+                                     HomeCommand="{Binding HomeCommand}"
+                                     ProfileCommand="{Binding GoProfileCommand}" />
+
+    </Grid>
+
+</UserControl>
