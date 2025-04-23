@@ -1,62 +1,52 @@
-name: Build and Publish to GitHub Releases
+name: Build and Release
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - 'v*'  # Trigger on tag push with pattern v*, e.g., v1.0.0
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
-  build_and_publish:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        runtime: [win-x64, linux-x64, osx-x64]
-        include:
-          - runtime: win-x64
-            platform: Windows
-          - runtime: linux-x64
-            platform: Linux
-          - runtime: osx-x64
-            platform: macOS
-
+  build:
+    runs-on: windows-latest  # Using Windows runner for .NET build
+    
     steps:
-    - name: Checkout the repository
-      uses: actions/checkout@v4
-
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 8.0.x
-
-    - name: Checkout submodules
-      run: git submodule update --init --recursive
-
+        dotnet-version: '8.0.x'  # Using .NET 8.0 as seen in your config
+        
     - name: Restore dependencies
       run: dotnet restore
-
-    - name: Build the project
-      run: dotnet build --no-restore -c Release
-
-    - name: Publish the project
+      
+    - name: Build Windows x64
+      run: dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+      
+    - name: Build Linux x64
+      run: dotnet publish -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+      
+    - name: Zip Windows build
       run: |
-        dotnet publish -c Release \
-          -r ${{ matrix.runtime }} \
-          --self-contained true \
-          --single-file \
-          --ready-to-run \
-          --include-native-libraries \
-          /p:PublishTrimmed=true
-
-    - name: Upload BebraLand Launcher.exe to GitHub Releases
-      if: success()
-      uses: ncipollo/release-action@v1
+        Compress-Archive -Path bin/Release/net8.0/win-x64/publish/* -DestinationPath GmiLauncher-win-x64.zip
+      shell: pwsh
+      
+    - name: Zip Linux build
+      run: |
+        Compress-Archive -Path bin/Release/net8.0/linux-x64/publish/* -DestinationPath GmiLauncher-linux-x64.zip
+      shell: pwsh
+      
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
-        artifacts: |
-          $(System.DefaultWorkingDirectory)/src/Gml.Launcher/bin/Release/net8.0/${{ matrix.runtime }}/publish/BebraLand Launcher.exe
-        tag: ${{ github.ref }}
-        name: Gml.Launcher-${{ matrix.platform }}
-
-    - name: Run tests (optional)
-      run: dotnet test --no-build --verbosity normal
+        files: |
+          GmiLauncher-win-x64.zip
+          GmiLauncher-linux-x64.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
