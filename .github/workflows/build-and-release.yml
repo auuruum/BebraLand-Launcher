@@ -1,10 +1,14 @@
 name: Build and Release
-
 on:
   push:
     branches: [ main, master ]  # Trigger on any push to main or master branch
   workflow_dispatch:  # Allow manual triggering
 
+# Add this permissions block
+permissions:
+  contents: write
+  packages: write
+  
 jobs:
   build:
     runs-on: windows-latest  # Using Windows runner for .NET build
@@ -51,16 +55,17 @@ jobs:
       
     - name: Generate release tag
       id: tag
+      # Update to use environment files instead of set-output
       run: |
-        echo "::set-output name=release_tag::build_$(date +'%Y.%m.%d_%H.%M.%S')"
+        echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_ENV
       shell: bash
         
     - name: Create Release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
-        name: Automatic build ${{ steps.tag.outputs.release_tag }}
+        tag_name: ${{ env.release_tag }}
+        name: Automatic build ${{ env.release_tag }}
         files: |
           BebraLand-Launcher-win-x64.zip
           BebraLand-Launcher-linux-x64.zip
