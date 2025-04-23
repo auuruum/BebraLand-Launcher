@@ -24,17 +24,58 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
       
+    # Windows builds
     - name: Build Windows x64
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
+    - name: Build Windows x86
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x86 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build Windows ARM
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-arm --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build Windows ARM64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    # OSX builds
+    - name: Build OSX x64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build OSX ARM64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    # Linux builds
     - name: Build Linux x64
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build Linux Musl x64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-musl-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build Linux ARM
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build Linux ARM64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
     - name: Copy executables to release folder
       run: |
         mkdir -p release
+        
+        # Windows executables
         cp "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x64.exe
+        cp "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x86.exe
+        cp "src/Gml.Launcher/bin/Release/net8.0/win-arm/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-arm.exe
+        cp "src/Gml.Launcher/bin/Release/net8.0/win-arm64/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-arm64.exe
+        
+        # macOS executables
+        cp "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-x64
+        cp "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-arm64
+        
+        # Linux executables
         cp "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-x64
+        cp "src/Gml.Launcher/bin/Release/net8.0/linux-musl-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-musl-x64
+        cp "src/Gml.Launcher/bin/Release/net8.0/linux-arm/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-arm
+        cp "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-arm64
       shell: bash
       
     - name: Generate release tag
@@ -51,7 +92,15 @@ jobs:
         name: Automatic build ${{ env.release_tag }}
         files: |
           release/BebraLand-Launcher-win-x64.exe
+          release/BebraLand-Launcher-win-x86.exe
+          release/BebraLand-Launcher-win-arm.exe
+          release/BebraLand-Launcher-win-arm64.exe
+          release/BebraLand-Launcher-osx-x64
+          release/BebraLand-Launcher-osx-arm64
           release/BebraLand-Launcher-linux-x64
+          release/BebraLand-Launcher-linux-musl-x64
+          release/BebraLand-Launcher-linux-arm
+          release/BebraLand-Launcher-linux-arm64
         draft: false
         prerelease: false
         generate_release_notes: true
