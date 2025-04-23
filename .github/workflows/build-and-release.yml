@@ -55,7 +55,7 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: |
-          $(System.DefaultWorkingDirectory)/bin/Release/net8.0/${{ matrix.runtime }}/publish/*
+          $(System.DefaultWorkingDirectory)/src/Gml.Launcher/bin/Release/net8.0/${{ matrix.runtime }}/publish/*
         tag: ${{ github.ref }}
         name: Gml.Launcher-${{ matrix.platform }}
 
