@@ -22,39 +22,31 @@ jobs:
       run: dotnet restore
       
     - name: Build Windows x64
-      run: dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
     - name: Build Linux x64
-      run: dotnet publish -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
     - name: Zip Windows build
       run: |
-        # Adjust path as needed according to your project structure
-        $projectPath = "src/GmiLauncher"
-        if (!(Test-Path $projectPath)) {
-          $projectPath = "GmiLauncher" 
-          if (!(Test-Path $projectPath)) {
-            $projectPath = "."
-          }
-        }
+        $publishPath = "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish"
         
-        $publishPath = "$projectPath/bin/Release/net8.0/win-x64/publish"
-        Compress-Archive -Path "$publishPath/*" -DestinationPath GmiLauncher-win-x64.zip
+        # List files to verify the path before zipping
+        Write-Host "Files in publish directory:"
+        Get-ChildItem -Path $publishPath -Recurse | ForEach-Object { Write-Host $_.FullName }
+        
+        Compress-Archive -Path "$publishPath/*" -DestinationPath BebraLand-Launcher-win-x64.zip -Force
       shell: pwsh
       
     - name: Zip Linux build
       run: |
-        # Adjust path as needed according to your project structure
-        $projectPath = "src/GmiLauncher"
-        if (!(Test-Path $projectPath)) {
-          $projectPath = "GmiLauncher" 
-          if (!(Test-Path $projectPath)) {
-            $projectPath = "."
-          }
-        }
+        $publishPath = "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish"
         
-        $publishPath = "$projectPath/bin/Release/net8.0/linux-x64/publish"
-        Compress-Archive -Path "$publishPath/*" -DestinationPath GmiLauncher-linux-x64.zip
+        # List files to verify the path before zipping
+        Write-Host "Files in publish directory:"
+        Get-ChildItem -Path $publishPath -Recurse | ForEach-Object { Write-Host $_.FullName }
+        
+        Compress-Archive -Path "$publishPath/*" -DestinationPath BebraLand-Launcher-linux-x64.zip -Force
       shell: pwsh
       
     - name: Generate release tag
@@ -70,8 +62,8 @@ jobs:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         name: Automatic build ${{ steps.tag.outputs.release_tag }}
         files: |
-          GmiLauncher-win-x64.zip
-          GmiLauncher-linux-x64.zip
+          BebraLand-Launcher-win-x64.zip
+          BebraLand-Launcher-linux-x64.zip
         draft: false
         prerelease: false
         generate_release_notes: true
