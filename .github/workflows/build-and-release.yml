@@ -4,7 +4,6 @@ on:
     branches: [ main, master ]  # Trigger on any push to main or master branch
   workflow_dispatch:  # Allow manual triggering
 
-# Add this permissions block
 permissions:
   contents: write
   packages: write
@@ -31,31 +30,15 @@ jobs:
     - name: Build Linux x64
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
-    - name: Zip Windows build
+    - name: Copy executables to release folder
       run: |
-        $publishPath = "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish"
-        
-        # List files to verify the path before zipping
-        Write-Host "Files in publish directory:"
-        Get-ChildItem -Path $publishPath -Recurse | ForEach-Object { Write-Host $_.FullName }
-        
-        Compress-Archive -Path "$publishPath/*" -DestinationPath BebraLand-Launcher-win-x64.zip -Force
-      shell: pwsh
-      
-    - name: Zip Linux build
-      run: |
-        $publishPath = "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish"
-        
-        # List files to verify the path before zipping
-        Write-Host "Files in publish directory:"
-        Get-ChildItem -Path $publishPath -Recurse | ForEach-Object { Write-Host $_.FullName }
-        
-        Compress-Archive -Path "$publishPath/*" -DestinationPath BebraLand-Launcher-linux-x64.zip -Force
-      shell: pwsh
+        mkdir -p release
+        cp "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x64.exe
+        cp "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-x64
+      shell: bash
       
     - name: Generate release tag
       id: tag
-      # Update to use environment files instead of set-output
       run: |
         echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_ENV
       shell: bash
@@ -67,8 +50,8 @@ jobs:
         tag_name: ${{ env.release_tag }}
         name: Automatic build ${{ env.release_tag }}
         files: |
-          BebraLand-Launcher-win-x64.zip
-          BebraLand-Launcher-linux-x64.zip
+          release/BebraLand-Launcher-win-x64.exe
+          release/BebraLand-Launcher-linux-x64
         draft: false
         prerelease: false
         generate_release_notes: true
