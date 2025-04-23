@@ -44,9 +44,9 @@ jobs:
         dotnet publish -c Release \
           -r ${{ matrix.runtime }} \
           --self-contained true \
-          --single-file true \
-          --ready-to-run true \
-          --include-native-libraries true \
+          --single-file \
+          --ready-to-run \
+          --include-native-libraries \
           /p:PublishTrimmed=true
 
     - name: Upload BebraLand Launcher.exe to GitHub Releases
