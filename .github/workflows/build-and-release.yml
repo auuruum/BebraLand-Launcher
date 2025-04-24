@@ -42,14 +42,22 @@ jobs:
           echo "release_tag=build_$(Get-Date -Format 'yyyy.MM.dd_HH.mm.ss')" >> $env:GITHUB_OUTPUT
         shell: pwsh
         
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          Copy-Item "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" -Destination "release/BebraLand-Launcher-win-x64.exe"
+          if (Test-Path "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe") {
+            Copy-Item "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" -Destination "release/BebraLand-Launcher-win-x86.exe"
+          }
+          Get-ChildItem release/
+        shell: pwsh
+        
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: windows_${{ steps.tag.outputs.release_tag }}
           name: Windows build ${{ steps.tag.outputs.release_tag }}
-          files: |
-            src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe
-            src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe
+          files: release/*
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -87,14 +95,24 @@ jobs:
           echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
         shell: bash
         
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" ]; then
+            cp "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-x64
+          fi
+          if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" ]; then
+            cp "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-arm64
+          fi
+          ls -la release/
+        shell: bash
+        
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: macos_${{ steps.tag.outputs.release_tag }}
           name: MacOS build ${{ steps.tag.outputs.release_tag }}
-          files: |
-            src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher
-            src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher
+          files: release/*
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -133,14 +151,22 @@ jobs:
           echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
         shell: bash
         
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-x64
+          if [ -f "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" ]; then
+            cp "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-arm64
+          fi
+          ls -la release/
+        shell: bash
+        
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: linux_${{ steps.tag.outputs.release_tag }}
           name: Linux build ${{ steps.tag.outputs.release_tag }}
-          files: |
-            src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher
-            src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher
+          files: release/*
           draft: false
           prerelease: false
           generate_release_notes: true
