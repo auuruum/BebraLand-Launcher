@@ -9,219 +9,102 @@ permissions:
   packages: write
   
 jobs:
-  # Build all platforms in parallel then create release
-  build-and-release:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest  # Using Windows runner for .NET build
+    
     steps:
-      - name: Generate release tag
-        id: tag
-        run: |
-          echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
-        shell: bash
-        
-      - name: Create empty release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          name: Automatic build ${{ steps.tag.outputs.release_tag }}
-          draft: true
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Windows builds
-  build-windows:
-    needs: build-and-release
-    runs-on: windows-latest
-    steps:
-      - name: Get release tag
-        id: get_tag
-        run: |
-          $tag = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/latest" -Headers @{Authorization = "token $env:GITHUB_TOKEN"} | Select-Object -ExpandProperty tag_name
-          echo "release_tag=$tag" >> $env:GITHUB_OUTPUT
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v3
       
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'  # Using .NET 8.0 as seen in your config
         
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
-          
-      - name: Restore dependencies
-        run: dotnet restore
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Install .NET workloads
-        run: |
-          dotnet workload install wasm-tools
-          dotnet workload install maui-windows
-          dotnet workload update
-        
-      - name: Build Windows x64
-        run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-        
-      - name: Build Windows x86
-        run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x86 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-        continue-on-error: true
+    # Install required workloads (might help with some runtime targets)
+    - name: Install .NET workloads
+      run: |
+        dotnet workload install wasm-tools
+        dotnet workload install maui-windows
+        dotnet workload update
       
-      - name: Prepare release files
-        run: |
-          mkdir -p release
-          Copy-Item "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" -Destination "release/BebraLand-Launcher-win-x64.exe" -ErrorAction SilentlyContinue
-          if (Test-Path "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe") {
-            Copy-Item "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" -Destination "release/BebraLand-Launcher-win-x86.exe"
-          }
-          Get-ChildItem release/
-        shell: pwsh
-        
-      - name: Upload Windows assets to release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_tag.outputs.release_tag }}
-          files: release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # MacOS builds
-  build-macos:
-    needs: build-and-release
-    runs-on: macos-latest
-    steps:
-      - name: Get release tag
-        id: get_tag
-        run: |
-          tag=$(curl -H "Authorization: token $GITHUB_TOKEN" -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | jq -r .tag_name)
-          echo "release_tag=$tag" >> $GITHUB_OUTPUT
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # Windows builds
+    - name: Build Windows x64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
-      - name: Checkout code
-        uses: actions/checkout@v3
-        
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
-          
-      - name: Restore dependencies
-        run: dotnet restore
+    - name: Build Windows x86
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x86 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+      continue-on-error: true
 
-      - name: Install .NET workloads
-        run: |
-          dotnet workload install wasm-tools
-          dotnet workload update
-        
-      - name: Build OSX x64
-        run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-        
-      - name: Build OSX ARM64
-        run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-        
-      - name: Prepare release files
-        run: |
-          mkdir -p release
-          if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" ]; then
-            cp "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-x64
-            chmod +x release/BebraLand-Launcher-osx-x64
-          fi
-          if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" ]; then
-            cp "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-arm64
-            chmod +x release/BebraLand-Launcher-osx-arm64
-          fi
-          ls -la release/
-        shell: bash
-        
-      - name: Upload MacOS assets to release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_tag.outputs.release_tag }}
-          files: release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # OSX builds
+    - name: Build OSX x64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+      continue-on-error: true
 
-  # Linux builds
-  build-linux:
-    needs: build-and-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get release tag
-        id: get_tag
-        run: |
-          tag=$(curl -H "Authorization: token $GITHUB_TOKEN" -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | jq -r .tag_name)
-          echo "release_tag=$tag" >> $GITHUB_OUTPUT
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build OSX ARM64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+      continue-on-error: true
+
+    # Linux builds
+    - name: Build Linux x64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+
+    - name: Build Linux ARM64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+      continue-on-error: true
       
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Copy available executables to release folder
+      run: |
+        mkdir -p release
         
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
-          
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Install .NET workloads
-        run: |
-          dotnet workload install wasm-tools
-          dotnet workload update
+        # Windows executables
+        cp "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x64.exe
         
-      - name: Build Linux x64
-        run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+        # Try to copy other Windows executables if they exist
+        if [ -f "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" ]; then
+          cp "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x86.exe
+        fi
         
-      - name: Build Linux ARM64
-        run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-        continue-on-error: true
+        # Try to copy macOS executables if they exist
+        if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" ]; then
+          cp "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-x64
+        fi
         
-      - name: Prepare release files
-        run: |
-          mkdir -p release
-          if [ -f "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" ]; then
-            cp "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-x64
-            chmod +x release/BebraLand-Launcher-linux-x64
-          fi
-          if [ -f "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" ]; then
-            cp "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-arm64
-            chmod +x release/BebraLand-Launcher-linux-arm64
-          fi
-          ls -la release/
-        shell: bash
+        if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" ]; then
+          cp "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-arm64
+        fi
         
-      - name: Upload Linux assets to release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_tag.outputs.release_tag }}
-          files: release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-  # Publish release
-  publish-release:
-    needs: [build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get release tag
-        id: get_tag
-        run: |
-          tag=$(curl -H "Authorization: token $GITHUB_TOKEN" -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | jq -r .tag_name)
-          echo "release_tag=$tag" >> $GITHUB_OUTPUT
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Linux executables
+        cp "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-x64
+        
+        # Try to copy other Linux executables if they exist
+        if [ -f "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" ]; then
+          cp "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-arm64
+        fi
+        
+        # List all files successfully copied to release directory
+        echo "Files ready for release:"
+        ls -la release/
+      shell: bash
       
-      - name: Update release draft status
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_tag.outputs.release_tag }}
-          draft: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Generate release tag
+      id: tag
+      run: |
+        echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_ENV
+      shell: bash
+        
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.release_tag }}
+        name: Automatic build ${{ env.release_tag }}
+        files: release/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
