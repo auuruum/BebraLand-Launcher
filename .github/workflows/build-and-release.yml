@@ -9,9 +9,21 @@ permissions:
   packages: write
   
 jobs:
-  build:
-    runs-on: windows-latest  # Using Windows runner for .NET build
-    
+  # Setup job to create the release tag that will be used by all jobs
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+    steps:
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
+
+  # Windows builds job
+  build-windows:
+    needs: setup
+    runs-on: windows-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -19,56 +31,72 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.0.x'  # Using .NET 8.0 as seen in your config
+        dotnet-version: '8.0.x'
         
     - name: Restore dependencies
       run: dotnet restore
 
-    # Install required workloads (might help with some runtime targets)
     - name: Install .NET workloads
       run: |
         dotnet workload install wasm-tools
         dotnet workload install maui-windows
         dotnet workload update
       
-    # Windows builds
     - name: Build Windows x64
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       
     - name: Build Windows x86
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x86 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
       continue-on-error: true
+      
+    - name: Copy executables to release folder
+      run: |
+        mkdir -p release
+        Copy-Item "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" -Destination "release/BebraLand-Launcher-win-x64.exe"
+        
+        if (Test-Path "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe") {
+          Copy-Item "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" -Destination "release/BebraLand-Launcher-win-x86.exe"
+        }
+      shell: pwsh
+      
+    - name: Upload Windows builds
+      uses: actions/upload-artifact@v2
+      with:
+        name: windows-builds
+        path: release/
+        retention-days: 1
 
-    # OSX builds
+  # MacOS builds job
+  build-macos:
+    needs: setup
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Install .NET workloads
+      run: |
+        dotnet workload install wasm-tools
+        dotnet workload update
+      
     - name: Build OSX x64
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-      continue-on-error: true
-
+      
     - name: Build OSX ARM64
       run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-      continue-on-error: true
-
-    # Linux builds
-    - name: Build Linux x64
-      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-
-    - name: Build Linux ARM64
-      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
-      continue-on-error: true
       
-    - name: Copy available executables to release folder
+    - name: Copy executables to release folder
       run: |
         mkdir -p release
         
-        # Windows executables
-        cp "src/Gml.Launcher/bin/Release/net8.0/win-x64/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x64.exe
-        
-        # Try to copy other Windows executables if they exist
-        if [ -f "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" ]; then
-          cp "src/Gml.Launcher/bin/Release/net8.0/win-x86/publish/BebraLand Launcher.exe" release/BebraLand-Launcher-win-x86.exe
-        fi
-        
-        # Try to copy macOS executables if they exist
         if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" ]; then
           cp "src/Gml.Launcher/bin/Release/net8.0/osx-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-x64
         fi
@@ -76,32 +104,89 @@ jobs:
         if [ -f "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" ]; then
           cp "src/Gml.Launcher/bin/Release/net8.0/osx-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-osx-arm64
         fi
+      shell: bash
+      
+    - name: Upload MacOS builds
+      uses: actions/upload-artifact@v2
+      with:
+        name: macos-builds
+        path: release/
+        retention-days: 1
+
+  # Linux builds job
+  build-linux:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
         
-        # Linux executables
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Install .NET workloads
+      run: |
+        dotnet workload install wasm-tools
+        dotnet workload update
+      
+    - name: Build Linux x64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+      
+    - name: Build Linux ARM64
+      run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
+      continue-on-error: true
+      
+    - name: Copy executables to release folder
+      run: |
+        mkdir -p release
+        
         cp "src/Gml.Launcher/bin/Release/net8.0/linux-x64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-x64
         
-        # Try to copy other Linux executables if they exist
         if [ -f "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" ]; then
           cp "src/Gml.Launcher/bin/Release/net8.0/linux-arm64/publish/BebraLand Launcher" release/BebraLand-Launcher-linux-arm64
         fi
-        
-        # List all files successfully copied to release directory
-        echo "Files ready for release:"
-        ls -la release/
       shell: bash
       
-    - name: Generate release tag
-      id: tag
+    - name: Upload Linux builds
+      uses: actions/upload-artifact@v2
+      with:
+        name: linux-builds
+        path: release/
+        retention-days: 1
+
+  # Release job that depends on all build jobs completing
+  create-release:
+    needs: [setup, build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: combined-release
+    
+    - name: Display structure of downloaded files
+      run: ls -R combined-release
+      
+    - name: Move files to release directory
       run: |
-        echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_ENV
-      shell: bash
+        mkdir -p release
+        mv combined-release/windows-builds/* release/ || true
+        mv combined-release/macos-builds/* release/ || true
+        mv combined-release/linux-builds/* release/ || true
         
+        echo "Files ready for release:"
+        ls -la release/
+      
     - name: Create Release
-      id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ env.release_tag }}
-        name: Automatic build ${{ env.release_tag }}
+        tag_name: ${{ needs.setup.outputs.release_tag }}
+        name: Automatic build ${{ needs.setup.outputs.release_tag }}
         files: release/*
         draft: false
         prerelease: false
