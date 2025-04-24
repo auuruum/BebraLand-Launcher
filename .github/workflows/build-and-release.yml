@@ -9,7 +9,34 @@ permissions:
   packages: write
   
 jobs:
+  # First, create the release but don't upload assets yet
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
+        shell: bash
+      
+      - name: Create empty release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: Automatic build ${{ steps.tag.outputs.release_tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Windows builds
   build-windows:
+    needs: create-release
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -36,12 +63,6 @@ jobs:
         run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r win-x86 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
         continue-on-error: true
       
-      - name: Generate release tag
-        id: tag
-        run: |
-          echo "release_tag=build_$(Get-Date -Format 'yyyy.MM.dd_HH.mm.ss')" >> $env:GITHUB_OUTPUT
-        shell: pwsh
-        
       - name: Prepare release files
         run: |
           mkdir -p release
@@ -52,19 +73,17 @@ jobs:
           Get-ChildItem release/
         shell: pwsh
         
-      - name: Create Release
+      - name: Upload Windows assets to release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: windows_${{ steps.tag.outputs.release_tag }}
-          name: Windows build ${{ steps.tag.outputs.release_tag }}
+          tag_name: ${{ needs.create-release.outputs.release_tag }}
           files: release/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # MacOS builds
   build-macos:
+    needs: create-release
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -89,12 +108,6 @@ jobs:
       - name: Build OSX ARM64
         run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r osx-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
         
-      - name: Generate release tag
-        id: tag
-        run: |
-          echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
-        shell: bash
-        
       - name: Prepare release files
         run: |
           mkdir -p release
@@ -107,19 +120,17 @@ jobs:
           ls -la release/
         shell: bash
         
-      - name: Create Release
+      - name: Upload MacOS assets to release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: macos_${{ steps.tag.outputs.release_tag }}
-          name: MacOS build ${{ steps.tag.outputs.release_tag }}
+          tag_name: ${{ needs.create-release.outputs.release_tag }}
           files: release/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Linux builds
   build-linux:
+    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -145,12 +156,6 @@ jobs:
         run: dotnet publish src/Gml.Launcher/Gml.Launcher.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true /p:UseAppHost=true
         continue-on-error: true
         
-      - name: Generate release tag
-        id: tag
-        run: |
-          echo "release_tag=build_$(date +'%Y.%m.%d_%H.%M.%S')" >> $GITHUB_OUTPUT
-        shell: bash
-        
       - name: Prepare release files
         run: |
           mkdir -p release
@@ -161,14 +166,10 @@ jobs:
           ls -la release/
         shell: bash
         
-      - name: Create Release
+      - name: Upload Linux assets to release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: linux_${{ steps.tag.outputs.release_tag }}
-          name: Linux build ${{ steps.tag.outputs.release_tag }}
+          tag_name: ${{ needs.create-release.outputs.release_tag }}
           files: release/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
